@@ -148,38 +148,6 @@ except ImportError:
 # -- Global functions ----------------------------------------------------------
 # ==============================================================================
 
-def dashboard():
-    # Create the window dimensions
-    screen_width = 360
-    screen_height = 360
-    
-    # Creating the window
-    screen = pygame.display.set_mode((screen_width, screen_height))
-    pygame.display.set_caption("Dashboard")
-
-    # Creating colors
-    white = (255, 255, 255)
-
-    # Creating the dashboard
-    dashboard_image = pygame.image.load("dashboard.png")
-
-    # Defining the dashboard position
-    image_x = 0   
-    image_y = 95
-
-    # Updating the dashboard while ingame
-    running = True
-        while running:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    running = False
-            # Blit the image
-            screen.blit(dashboard_image, (image_x, image_y))
-
-            # Updating display
-            pygame.display.flip()
-
-
 def find_weather_presets():
     rgx = re.compile('.+?(?:(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])|$)')
     name = lambda x: ' '.join(m.group(0) for m in rgx.finditer(x))
@@ -1269,6 +1237,24 @@ def game_loop(args):
     pygame.font.init()
     world = None
     original_settings = None
+
+    # Creating colors
+    white = (255, 255, 255)
+
+    # Creating the dashboard
+    dashboard_image = pygame.image.load("dashboard.png")
+
+    # Defining the dashboard position
+    image_x = 0   
+    image_y = 95
+
+    # Updating the dashboard while ingame
+    running = True
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+
 
     try:
         client = carla.Client(args.host, args.port)
