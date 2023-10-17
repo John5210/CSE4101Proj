@@ -306,17 +306,17 @@ class DualControl(object):
                 self._parse_vehicle_wheel()
                 self._control.reverse = self._control.gear < 0
                 # Set automatic control-related vehicle lights
-                if self._control.brake:
-                    current_lights |= carla.VehicleLightState.Brake
-                else:  # Remove the Brake flag
-                    current_lights &= ~carla.VehicleLightState.Brake
-                if self._control.reverse:
-                    current_lights |= carla.VehicleLightState.Reverse
-                else:  # Remove the Reverse flag
-                    current_lights &= ~carla.VehicleLightState.Reverse
-                if current_lights != self._lights:  # Change the light state only if necessary
-                    self._lights = current_lights
-                    world.player.set_light_state(carla.VehicleLightState(self._lights))
+                #if self._control.brake:
+                #    current_lights |= carla.VehicleLightState.Brake
+                #else:  # Remove the Brake flag
+                #    current_lights &= ~carla.VehicleLightState.Brake
+                #if self._control.reverse:
+                #    current_lights |= carla.VehicleLightState.Reverse
+                #else:  # Remove the Reverse flag
+                #    current_lights &= ~carla.VehicleLightState.Reverse
+                #if current_lights != self._lights:  # Change the light state only if necessary
+                #    self._lights = current_lights
+                #    world.player.set_light_state(carla.VehicleLightState(self._lights))
             elif isinstance(self._control, carla.WalkerControl):
                 self._parse_walker_keys(pygame.key.get_pressed(), clock.get_time())
             world.player.apply_control(self._control)
@@ -338,7 +338,7 @@ class DualControl(object):
     def _parse_vehicle_wheel(self):
         numAxes = self._joystick.get_numaxes()
         jsInputs = [float(self._joystick.get_axis(i)) for i in range(numAxes)]
-        # print (jsInputs)
+        # print(jsInputs)
         jsButtons = [float(self._joystick.get_button(i)) for i in
                      range(self._joystick.get_numbuttons())]
 
@@ -423,11 +423,27 @@ class HUD(object):
 
     def tick(self, world, clock):
         self._notifications.tick(world, clock)
-        if not self._show_info:
-            return
+        # Get relevant data
         t = world.player.get_transform()
         v = world.player.get_velocity()
         c = world.player.get_control()
+        # Set automatic control-related vehicle lights
+        if isinstance(c, carla.VehicleControl):
+            lights = world.player.get_light_state()
+            l_new = lights
+            if c.brake > 0:
+                l_new |= carla.VehicleLightState.Brake
+            else:  # Remove the Brake flag
+                l_new &= ~carla.VehicleLightState.Brake
+            if c.reverse > 0:
+                l_new |= carla.VehicleLightState.Reverse
+            else:  # Remove the Reverse flag
+                l_new &= ~carla.VehicleLightState.Reverse
+            if l_new != lights:  # Change the light state only if necessary
+                world.player.set_light_state(carla.VehicleLightState(l_new))
+        if not self._show_info:
+            return
+        #print(c)
         heading = 'N' if abs(t.rotation.yaw) < 89.5 else ''
         heading += 'S' if abs(t.rotation.yaw) > 90.5 else ''
         heading += 'E' if 179.5 > t.rotation.yaw > 0.5 else ''

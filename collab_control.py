@@ -10,7 +10,7 @@
 # documented example, please take a look at tutorial.py.
 
 """
-Welcome to CARLA manual control.
+Welcome to CARLA collaborative control.
 
 Use ARROWS or WASD keys for control.
 
@@ -19,7 +19,6 @@ Use ARROWS or WASD keys for control.
     A/D          : steer left/right
     Q            : toggle reverse
     Space        : hand-brake
-    P            : toggle autopilot
     M            : toggle manual transmission
     ,/.          : gear up/down
     CTRL + W     : toggle constant velocity mode at 60 km/h
@@ -142,7 +141,6 @@ try:
     import numpy as np
 except ImportError:
     raise RuntimeError('cannot import numpy, make sure numpy package is installed')
-
 
 # ==============================================================================
 # -- Global functions ----------------------------------------------------------
@@ -363,7 +361,6 @@ class World(object):
         if self.player is not None:
             self.player.destroy()
 
-
 # ==============================================================================
 # -- KeyboardControl -----------------------------------------------------------
 # ==============================================================================
@@ -371,19 +368,17 @@ class World(object):
 
 class KeyboardControl(object):
     """Class that handles keyboard input."""
-    def __init__(self, world, start_in_autopilot):
-        self._autopilot_enabled = start_in_autopilot
+    def __init__(self, world):
         self._ackermann_enabled = False
         self._ackermann_reverse = 1
         if isinstance(world.player, carla.Vehicle):
             self._control = carla.VehicleControl()
             self._ackermann_control = carla.VehicleAckermannControl()
             self._lights = carla.VehicleLightState.NONE
-            world.player.set_autopilot(self._autopilot_enabled)
+            world.player.set_autopilot(True)
             world.player.set_light_state(self._lights)
         elif isinstance(world.player, carla.Walker):
             self._control = carla.WalkerControl()
-            self._autopilot_enabled = False
             self._rotation = world.player.get_transform().rotation
         else:
             raise NotImplementedError("Actor type not supported")
@@ -400,12 +395,9 @@ class KeyboardControl(object):
                 if self._is_quit_shortcut(event.key):
                     return True
                 elif event.key == K_BACKSPACE:
-                    if self._autopilot_enabled:
-                        world.player.set_autopilot(False)
-                        world.restart()
-                        world.player.set_autopilot(True)
-                    else:
-                        world.restart()
+                    world.player.set_autopilot(False)
+                    world.restart()
+                    world.player.set_autopilot(True)
                 elif event.key == K_F1:
                     world.hud.toggle_info()
                 elif event.key == K_v and pygame.key.get_mods() & KMOD_SHIFT:
@@ -479,20 +471,20 @@ class KeyboardControl(object):
                         client.start_recorder("manual_recording.rec")
                         world.recording_enabled = True
                         world.hud.notification("Recorder is ON")
-                elif event.key == K_p and (pygame.key.get_mods() & KMOD_CTRL):
-                    # stop recorder
-                    client.stop_recorder()
-                    world.recording_enabled = False
-                    # work around to fix camera at start of replaying
-                    current_index = world.camera_manager.index
-                    world.destroy_sensors()
-                    # disable autopilot
-                    self._autopilot_enabled = False
-                    world.player.set_autopilot(self._autopilot_enabled)
-                    world.hud.notification("Replaying file 'manual_recording.rec'")
-                    # replayer
-                    client.replay_file("manual_recording.rec", world.recording_start, 0, 0)
-                    world.camera_manager.set_sensor(current_index)
+                # elif event.key == K_p and (pygame.key.get_mods() & KMOD_CTRL):
+                #     # stop recorder
+                #     client.stop_recorder()
+                #    world.recording_enabled = False
+                #    # work around to fix camera at start of replaying
+                #    current_index = world.camera_manager.index
+                #    world.destroy_sensors()
+                #    # disable autopilot
+                #    self._autopilot_enabled = False
+                #    world.player.set_autopilot(self._autopilot_enabled)
+                #    world.hud.notification("Replaying file 'manual_recording.rec'")
+                #    # replayer
+                #    client.replay_file("manual_recording.rec", world.recording_start, 0, 0)
+                #    world.camera_manager.set_sensor(current_index)
                 elif event.key == K_MINUS and (pygame.key.get_mods() & KMOD_CTRL):
                     if pygame.key.get_mods() & KMOD_SHIFT:
                         world.recording_start -= 10
@@ -528,14 +520,6 @@ class KeyboardControl(object):
                         self._control.gear = max(-1, self._control.gear - 1)
                     elif self._control.manual_gear_shift and event.key == K_PERIOD:
                         self._control.gear = self._control.gear + 1
-                    elif event.key == K_p and not pygame.key.get_mods() & KMOD_CTRL:
-                        if not self._autopilot_enabled and not sync_mode:
-                            print("WARNING: You are currently in asynchronous mode and could "
-                                  "experience some issues with the traffic simulation")
-                        self._autopilot_enabled = not self._autopilot_enabled
-                        world.player.set_autopilot(self._autopilot_enabled)
-                        world.hud.notification(
-                            'Autopilot %s' % ('On' if self._autopilot_enabled else 'Off'))
                     elif event.key == K_l and pygame.key.get_mods() & KMOD_CTRL:
                         current_lights ^= carla.VehicleLightState.Special1
                     elif event.key == K_l and pygame.key.get_mods() & KMOD_SHIFT:
@@ -563,24 +547,26 @@ class KeyboardControl(object):
                         current_lights ^= carla.VehicleLightState.LeftBlinker
                     elif event.key == K_x:
                         current_lights ^= carla.VehicleLightState.RightBlinker
+                    if current_lights != self._lights:  # Change the light state only if necessary
+                        self._lights = current_lights
+                        world.player.set_light_state(carla.VehicleLightState(self._lights))
 
-        if not self._autopilot_enabled:
-            if isinstance(self._control, carla.VehicleControl):
-                self._parse_vehicle_keys(pygame.key.get_pressed(), clock.get_time())
-                self._control.reverse = self._control.gear < 0
-                # Apply control
-                if not self._ackermann_enabled:
-                    world.player.apply_control(self._control)
-                else:
-                    world.player.apply_ackermann_control(self._ackermann_control)
-                    # Update control to the last one applied by the ackermann controller.
-                    self._control = world.player.get_control()
-                    # Update hud with the newest ackermann control
-                    world.hud.update_ackermann_control(self._ackermann_control)
-
-            elif isinstance(self._control, carla.WalkerControl):
-                self._parse_walker_keys(pygame.key.get_pressed(), clock.get_time(), world)
+        if isinstance(self._control, carla.VehicleControl):
+            self._parse_vehicle_keys(pygame.key.get_pressed(), clock.get_time())
+            self._control.reverse = self._control.gear < 0
+            # Apply control
+            if not self._ackermann_enabled:
                 world.player.apply_control(self._control)
+            else:
+                world.player.apply_ackermann_control(self._ackermann_control)
+                # Update control to the last one applied by the ackermann controller.
+                self._control = world.player.get_control()
+                # Update hud with the newest ackermann control
+                world.hud.update_ackermann_control(self._ackermann_control)
+
+        elif isinstance(self._control, carla.WalkerControl):
+            self._parse_walker_keys(pygame.key.get_pressed(), clock.get_time(), world)
+            world.player.apply_control(self._control)
 
     def _parse_vehicle_keys(self, keys, milliseconds):
         if keys[K_UP] or keys[K_w]:
@@ -1258,7 +1244,7 @@ def game_loop(args):
             traffic_manager = client.get_trafficmanager()
             traffic_manager.set_synchronous_mode(True)
 
-        if args.autopilot and not sim_world.get_settings().synchronous_mode:
+        if not sim_world.get_settings().synchronous_mode:
             print("WARNING: You are currently in asynchronous mode and could "
                   "experience some issues with the traffic simulation")
 
@@ -1270,7 +1256,7 @@ def game_loop(args):
 
         hud = HUD(args.width, args.height)
         world = World(sim_world, hud, args)
-        controller = KeyboardControl(world, args.autopilot)
+        controller = KeyboardControl(world)
 
         if args.sync:
             sim_world.tick()
@@ -1327,10 +1313,6 @@ def main():
         type=int,
         help='TCP port to listen to (default: 2000)')
     argparser.add_argument(
-        '-a', '--autopilot',
-        action='store_true',
-        help='enable autopilot')
-    argparser.add_argument(
         '--res',
         metavar='WIDTHxHEIGHT',
         default='1280x720',
@@ -1378,6 +1360,4 @@ def main():
         print('\nCancelled by user. Bye!')
 
 
-if __name__ == '__main__':
-
-    main()
+main()
