@@ -595,12 +595,15 @@ class KeyboardControl(object):
         if keys[K_DOWN] or keys[K_s]:
             if not self._ackermann_enabled:
                 self._control.brake = min(self._control.brake + 0.2, 1)
+                self._info_text = ["Braking"]
             else:
                 self._ackermann_control.speed -= min(abs(self._ackermann_control.speed), round(milliseconds * 0.005, 2)) * self._ackermann_reverse
                 self._ackermann_control.speed = max(0, abs(self._ackermann_control.speed)) * self._ackermann_reverse
+                self._info_text = ["Braking"]
         else:
             if not self._ackermann_enabled:
                 self._control.brake = 0
+                self._info_text = ["Braking"]
 
         steer_increment = 5e-4 * milliseconds
         if keys[K_LEFT] or keys[K_a]:
