@@ -1,3 +1,17 @@
+MILESTONE 2:
 1. Finish cockpit driver view 
 2. Work on Collaborative Control file
 3. Gather information on Scenario Runner
+
+
+MILESTONE 3:
+1. Implement Reactive Dashboard
+	a. With Speedometer
+	b. With Steering Wheel
+2. Ensure ScenarioRunner works consistently
+	a. If it doesn't work, create a file like "generate_traffic.py" where we can manipulate the behavior of other actors
+3. Refine "collaborative_control.py"
+	a. Allow 50/50 input for user and autopilot input
+		i. If this is completed, refine further to where human input always wins over autopilot.
+4. Investigate Haptic Feedback for Logitech G29 steering wheel.
+	a. Most likely something has to be put into the code to allow the steering wheel's haptic feedback to be enabled.
