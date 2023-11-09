@@ -553,14 +553,9 @@ class KeyboardControl(object):
             #########################################################
             # Edit these lines to modify the collaborative control. #
             #########################################################
-            if self._control.throttle > 0 or self._control.steer > 0.15 or self._control.steer < -0.15 or self._control.brake > 0:
-                collab_control.steer = self._control.steer
-                collab_control.throttle = self._control.throttle
-                collab_control.brake = self._control.brake
-            else:
-                collab_control.steer = auto_control.steer
-                collab_control.throttle = auto_control.throttle
-                collab_control.brake = auto_control.brake
+            collab_control.throttle = (auto_control.throttle + self._control.throttle) / 2
+            collab_control.steer = (auto_control.steer + self._control.steer) / 2
+            collab_control.brake = (auto_control.brake + self._control.brake) / 2
             collab_control.hand_brake = auto_control.hand_brake or self._control.hand_brake
             collab_control.reverse = auto_control.reverse or self._control.reverse
             if collab_control.hand_brake or collab_control.brake > 0:
